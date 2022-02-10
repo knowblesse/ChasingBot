@@ -28,18 +28,23 @@ Music file must have following format
 #define BT_RX 31
 #define BT_TX 30
 
-//TMRpcm Librarys (Play music)
+//Library
 #include <pcmRF.h>
 #include <TMRpcm.h>
 #include <pcmConfig.h>
 #include <SoftwareSerial.h>
 #include <SD.h>
+#include <EEPROM.h>
 
 SoftwareSerial BT(BT_RX, BT_TX);
 TMRpcm tmrpcm;
 
+// Welcome Message
+#define MSGSIZE 293
+void printWelcomeMsg();
+
 // Motor Variables
-#define MOTORSPEED 150 // 0 : no movement, 255 : maximum
+#define MOTORSPEED 130 // 0 : no movement, 255 : maximum
 
 // Motor Functions Init.
 void motorInit();
@@ -52,19 +57,40 @@ char letter_cson = 'q';
 char letter_csoff = 'w';
 char letter_EXStart = 's';
 char letter_EXEnd = 'e';
-
+char motorForward
 unsigned long time = 0;
+
+// Fixed Experiment Parameter
+struct ExpParam
+{
+  // All parameters are in seconds
+  long habituation_time = 180;
+  long cs_time = 1
+  long isi_time_min = 10;
+  long isi_time_max = 10;
+  int num_trial = 10;
+};
+
+struct PersonalParam
+{
+  ExpParam cndParam;
+  ExpParam extParam;
+  ExpParam retParam;
+};
+
+
+
+
 long hab = -1; //habituation time
 int hstate = 0;
 int test = 0;
 int prob = 0;
-int isi_a = -1;     //CS와 다음 CS 사이의 시간 
-int isi_b = 0; //interstimulus end
+int isi_min = -1; // minimum ISI time 
+int isi_max = 0; // maximum ISI time
 long int isi = 0;
 int prob_a = 1;     //로봇 이동 방향(확률) 
 int prob_b = 3;
 int trial_set = -1; // how many trial do?
-int speed1 = -1;
 long us_start = -1;
 long us_work = -1;
 int us_work_1 = 3;
@@ -109,213 +135,106 @@ void setup()
   // Init. SD Card
   while (!SD.begin(SD_PIN)) 
   {
-    Serial.println("No SD card");
+    Serial1.println("No SD card");
     delay(1000);
   }
+
+  printWelcomeMsg();
+
+  // Load User Profile
+  bool isUserSet = False;
+  while(!isUserSet)
+  {
+    Serial1.println("Who are you?");
+    Serial1.println("a. KI&YB   b. BM    d. Debug");
+    while(Serial1.available())
+    {
+      switch(char(Serial1.read()))
+      {
+        case 'a':
+          Serial1.println("Choi lab 2.5nd & Crazy Rabbit");
+          PersonalParam
+          hab = 120000;
+          isi_min = 50;
+          isi_max = 50;
+          trial_set = 5;
+          us_start = 7500;
+          us_work = 2500;
+          KI_Mode = 1;
+          musicFileName = "sin1.wav";
+
+          break;
+
+        case 'b':
+          Serial1.println("Jay Park in the lab");
+          BM_Mode = 1;
+          hab = 1000;
+          isi_min = 10;
+          isi_max = 31;
+          us_start = 0;
+          us_work = random(us_work_1, us_work_2);
+          us_work = us_work * 1000;
+          trial_set = 8;
+          musicFileName = "sin1.wav";
+          ran1 = millis();
+
+          break;
+
+        case 'd':
+          test_state = 1;
+          default_state = 1;
+          //TODO : Debug Mode
+          break;
+
+        default:
+          Serial1.println("Wrong Input");
+          break;
+      }
+          
+      
 }
 
 void loop()
 {
   int x, delay_en;
 
-  if(person_state == 0){
-    Serial1.println("Who are you?");
-    Serial1.println("a. KI&YB   b. BM    d. Debug");
-  }
-
-  while(person_state != 1)
+  /********************************************/
+  /*            Setup New Experiment          */
+  /********************************************/
+  Serial1.println("Which condition do you want?");
+  Serial1.println("a. Conditioning   b. Extinction   c. Retention/Renwal");
+  while(Serial1.available())
   {
-    while(Serial1.available())
+    switch(char(Serial1.read()))
     {
-      char val = (char) Serial1.read();
-      if(val != -1)
-      {
-        switch(val)
-        {
-          case 'a':
-            Serial1.println("Choi lab 2.5nd & Crazy Rabbit");
-            speed1 = 2000;
-            hab = 120000;
-            isi_a = 50;
-            isi_b = 50;
-            trial_set = 5;
-            us_start = 7500;
-            us_work = 2500;
-            KI_Mode = 1;
-            musicFileName = "sin1.wav";
+      case 'a':
+        Serial1.println("conditioning");
+        break;
 
-            break;
+      case 'b':
+        Serial1.println("Extinction");
+        speed1 = 0;
+        trial_set = 30;
+        break;
 
-          case 'b':
-            Serial1.println("Jay Park in the lab");
-            BM_Mode = 1;
-            speed1 = 2000;
-            hab = 1000;
-            isi_a = 10;
-            isi_b = 31;
-            us_start = 0;
-            us_work = random(us_work_1, us_work_2);
-            us_work = us_work * 1000;
-            trial_set = 8;
-            musicFileName = "sin1.wav";
-            ran1 = millis();
+      case 'c':
+        Serial1.println("Retention");
+        speed1 = 0;
+        trial_set = 1;
+        us_start = 10000;
+        us_work = 1; //그대로 두세용 소리 뒤에 US delay임
 
-            break;
-
-          case 'd':
-            test_state = 1;
-            default_state = 1;
-
-            break;
+        if(KI_Mode == 1){
+          Serial1.println("KI_Mode");
+          speed1 = 0;
+          trial_set = 5;
         }
-        val = -1;
-        person_state = 1;
-      }
+        break;
+      default:
+        Serial1.println("Wrong Input");
+        break;
     }
-  }
-  if(test_state == 0){
-    Serial1.println("Which condition do you want?");
-    Serial1.println("a. Conditioning   b. Extinction   c. Retention/Renwal");
-  }
-
-
-  while(test_state != 1)
-  {
-    while(Serial1.available())
-    {
-      char val = (char) Serial1.read();
-      if(val != -1)
-      {
-
-        switch(val)
-        {
-          case 'a':
-            Serial1.println("conditioning");
-            break;
-
-          case 'b':
-            Serial1.println("Extinction");
-            speed1 = 0;
-            trial_set = 30;
-            break;
-
-          case 'c':
-            Serial1.println("Retention");
-            speed1 = 0;
-            trial_set = 1;
-            us_start = 10000;
-            us_work = 1; //그대로 두세용 소리 뒤에 US delay임
-
-            if(KI_Mode == 1){
-              Serial1.println("KI_Mode");
-              speed1 = 0;
-              trial_set = 5;
-            }
-            break;
-
-
-        }
-      }
-      test_state = 1;
-      val = -1;
-    }
-  }
-
-  if(default_state == 1)
-  {
-    Serial1.println("Do NOT type in before the question completes");
-    Serial1.println("Robot speed?");
-
-    while(speed1 == -1){
-      while(Serial1.available()){
-        serial_input = Serial1.readStringUntil('\n');
-        if(serial_input != -1){
-          speed1 = serial_input.toInt();
-          Serial1.println(speed1);
-        }
-      }
-    }
-
-    Serial1.println("Habituation time?");
-    while(hab == -1){
-      while(Serial1.available()){
-        serial_input = Serial1.readStringUntil('\n');
-        if(serial_input != -1){
-          hab = (serial_input.toInt())*1000;
-          Serial.println(hab/1000);
-        }
-      }
-    }
-
-    Serial1.println("ISI duration?");
-    while(isi_a == -1){
-      while(Serial1.available()){
-        serial_input = Serial1.readStringUntil('\n');
-        if(serial_input != -1){
-          isi_a = (serial_input.toInt());
-          isi_b = (serial_input.toInt()+1);
-          Serial1.println(isi_a);          
-        }
-      }
-    }
-
-    Serial1.println("How many trials?");
-    while(trial_set == -1){
-      while(Serial1.available()){
-        serial_input = Serial1.readStringUntil('\n');
-        if(serial_input != -1){
-          trial_set = serial_input.toInt();
-          Serial1.println(trial_set);
-        }
-      }
-    }
-
-    Serial1.println("When does the US start after the CS onset?");
-    while(us_start == -1){
-      while(Serial1.available()){
-        serial_input = Serial1.readStringUntil('\n');
-        if(serial_input != -1){
-          us_start = (serial_input.toInt())*1000;
-          Serial1.println(us_start);
-        }
-      }
-    }
-
-    Serial1.println("US duration?");
-    while(us_work == -1){
-      while(Serial1.available()){
-        serial_input = Serial1.readStringUntil('\n');
-        if(serial_input != -1){
-          us_work = (serial_input.toInt())*1000;
-          Serial1.println(us_work);
-        }
-      }
-    }
-
-    Serial1.println("Which music do you want to play?");
-    Serial1.println("a. Sin   b. whitenoise   c. 4season");
-    while(musicFileName == ""){
-      while(Serial1.available()){
-        char val = (char) Serial1.read();
-        switch(val){
-          case 'a':
-            musicFileName = "sin1.wav";
-            break;
-
-          case 'b':
-            musicFileName = "whitenoise.wav";
-            break;
-
-          case 'c':
-            musicFileName = "season4.wav";
-            break; 
-        }
-        Serial1.println(musicFileName);
-      }
-    }
-
-    //music = "sin1.wav";
-    default_state = 0;
+    test_state = 1;
   }
 
   if(start_state == 0)
@@ -348,7 +267,7 @@ void loop()
             person_state = 0;
             test_state = 0;
             speed1 = -1;
-            isi_a = -1;
+            isi_min = -1;
             hab = -1;
             us_start = -1;
             us_work = -1;
@@ -384,7 +303,7 @@ void loop()
     else{
       prob = random(prob_a, prob_b);
     }
-    isi = random(isi_a, isi_b);
+    isi = random(isi_min, isi_max);
     isi = isi * 1000;
     trial = trial + 1;
     if(hstate == 0)
@@ -493,3 +412,11 @@ void motorBackward()
   digitalWrite(MOTOR_DIR_PIN, LOW);
   analogWrite(MOTOR_SPEED_PIN,MOTORSPEED); 
 }
+
+void printWelcomeMsg()
+{
+  for(int i = 0; i < MSGSIZE; i++)
+  {
+    Serial1.print(char(EEPROM.read(i)));
+   }
+ }
