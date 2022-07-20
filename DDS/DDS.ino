@@ -11,6 +11,17 @@
 #define PIN_ENCODER1 4
 #define PIN_ENCODER2 5
 #define PIN_BUTTON 6
+
+// +---------------------------------------------------------------------------------+
+// |                        Variable Registor Configuration                          |
+// +---------------------------------------------------------------------------------+
+#define PIN_CS_VR 8
+
+// +---------------------------------------------------------------------------------+
+// |                            Optoswitch Configuration                             |
+// +---------------------------------------------------------------------------------+
+#define PIN_OPTO 9
+
 // +---------------------------------------------------------------------------------+
 // |                   SSD1306 based OLED Screen Configuration                       |
 // +---------------------------------------------------------------------------------+
@@ -23,7 +34,7 @@ U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(2);
 // +---------------------------------------------------------------------------------+
 // AD9833 uses SPI communication. Default pins with D3 for Chip Select were used. 
 // COPI : 11, SCLK : 13 (CIPO : 12)
-#define PIN_CS 3
+#define PIN_CS_AD9833 3
 #define CLK 25000000
 // +-----+-----+--------------------+---------+---------+---------+----+-------+
 // | D15 | D14 |        D13         |   D12   |   D11   |   D10   | D9 |  D8   |
@@ -61,16 +72,21 @@ void setup() {
   
   Serial.begin(9600);
   SPI.begin();
-  SPI.beginTransaction(SPISettings(40000000, MSBFIRST, SPI_MODE2));
 
   // CS Init.
-  pinMode(PIN_CS, OUTPUT);
-  digitalWrite(PIN_CS, LOW);
+  pinMode(PIN_CS_AD9833, OUTPUT);
+  digitalWrite(PIN_CS_AD9833, LOW);
 
   // Button Init.
   pinMode(PIN_ENCODER1, INPUT);
   pinMode(PIN_ENCODER2, INPUT);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
+
+  // Tone On/Off Init.
+  pinMode(PIN_OPTO, OUTPUT);
+  digitalWrite(PIN_OPTO, LOW);
+  pinMode(PIN_CS_VR, OUTPUT);
+  digitalWrite(PIN_CS_VR, HIGH);
 
   // Screen Init.
   u8x8.begin();
@@ -81,6 +97,26 @@ void setup() {
 }
 
 void loop() {
+
+  if (Serial.available()){
+    int a = Serial.parseInt();
+    if (a == 1){
+      digitalWrite(PIN_OPTO, HIGH);
+    }
+    else if (a==0) {
+      digitalWrite(PIN_OPTO, LOW);
+    }
+    else {
+      byte data = a;
+      Serial.println("data transferred");
+      SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
+      digitalWrite(PIN_CS_VR, LOW);
+      SPI.transfer(0);
+      SPI.transfer(data);
+      digitalWrite(PIN_CS_VR, HIGH);
+    }
+  }
+  
   // Check Button
   if (digitalRead(PIN_BUTTON)==LOW){ // LOW on press
     if(buttonStatus == false){
@@ -157,6 +193,7 @@ void updateFreqScreen(double freq){
 }
 // set frequency registor
 void setFreq(double freq){
+  SPI.beginTransaction(SPISettings(40000000, MSBFIRST, SPI_MODE2));
   Serial.print("Set Freq : ");
   Serial.println(freq);
   word lsb = getLSB(freq);
@@ -166,21 +203,21 @@ void setFreq(double freq){
   Serial.print("MSB :");
   Serial.println(msb, HEX);
   // Start Writing
-  digitalWrite(PIN_CS, LOW);
+  digitalWrite(PIN_CS_AD9833, LOW);
   SPI.transfer16(reset); // Reset 
-  digitalWrite(PIN_CS, HIGH);
-  digitalWrite(PIN_CS, LOW);
+  digitalWrite(PIN_CS_AD9833, HIGH);
+  digitalWrite(PIN_CS_AD9833, LOW);
   SPI.transfer16(lsb);
-  digitalWrite(PIN_CS, HIGH);
-  digitalWrite(PIN_CS, LOW);
+  digitalWrite(PIN_CS_AD9833, HIGH);
+  digitalWrite(PIN_CS_AD9833, LOW);
   SPI.transfer16(msb);
-  digitalWrite(PIN_CS, HIGH);
-  digitalWrite(PIN_CS, LOW);
+  digitalWrite(PIN_CS_AD9833, HIGH);
+  digitalWrite(PIN_CS_AD9833, LOW);
   SPI.transfer16(phase);
-  digitalWrite(PIN_CS, HIGH);
-  digitalWrite(PIN_CS, LOW);
+  digitalWrite(PIN_CS_AD9833, HIGH);
+  digitalWrite(PIN_CS_AD9833, LOW);
   SPI.transfer16(control);
-  digitalWrite(PIN_CS, HIGH);
+  digitalWrite(PIN_CS_AD9833, HIGH);
 }
 
 // Calculate Frequency setting words
