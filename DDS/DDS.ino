@@ -6,28 +6,21 @@
 #include <U8x8lib.h>
 #include <SPI.h>
 // +---------------------------------------------------------------------------------+
-// |                         Encoder Switch Configuration                            |
+// |                             Digial Pin Configuration                            |
 // +---------------------------------------------------------------------------------+
 #define PIN_ENCODER1 4
 #define PIN_ENCODER2 5
-#define PIN_BUTTON 6
-
-// +---------------------------------------------------------------------------------+
-// |                        Variable Registor Configuration                          |
-// +---------------------------------------------------------------------------------+
-#define PIN_CS_VR 8
-
-// +---------------------------------------------------------------------------------+
-// |                            Optoswitch Configuration                             |
-// +---------------------------------------------------------------------------------+
-#define PIN_OPTO 9
+#define PIN_BUTTON 6 // encoder push button
+#define PIN_CSON 8 // Input signal for CS on
+#define PIN_SOUND_ON 9
+#define PIN_VOLUMN 10 // variable registor
 
 // +---------------------------------------------------------------------------------+
 // |                   SSD1306 based OLED Screen Configuration                       |
 // +---------------------------------------------------------------------------------+
 // Default pins for I2C.
 // SCL : A5, SDA : A4
-U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(2);
+U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(0);
 
 // +---------------------------------------------------------------------------------+
 // |                            AD9833 Configuration                                 |
@@ -55,8 +48,10 @@ static word phase = 0xC000; //   0b1100 0000 0000 0000
 // functions
 word getLSB(double freq);
 word getMSB(double freq);
-void updateFreq(double freq);
 void setFreq(double freq);
+void setVolumn(int volumn);
+void changeMode(bool isIncrease);
+void changeValue(bool isIncrease);
 
 // Button states
 bool buttonStatus = false;
@@ -64,8 +59,24 @@ bool waitForL1 = false;
 bool waitForL2 = false;
 
 // Freq state
-bool changeFreq = false;
+bool isSetMode = false;
 int freq = 2000;
+int volumn = 20;
+int rampUp = 0;
+bool soundOn = false;
+
+// Min Max Value
+int Max_freq = 10000;
+int Min_freq = 500;
+int Chn_freq = 500;
+int Max_volumn = 240;
+int Min_volumn = 30;
+int Chn_volumn = 5;
+int Max_rampUp = 500;
+int Min_rampUp = 0;
+int Chn_rampUp = 100;
+
+int mode = 0; // 0:Freq, 1:Volumn, 2:Ramp Up, 3:Manual 
 
 
 void setup() {
@@ -83,10 +94,10 @@ void setup() {
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 
   // Tone On/Off Init.
-  pinMode(PIN_OPTO, OUTPUT);
-  digitalWrite(PIN_OPTO, LOW);
-  pinMode(PIN_CS_VR, OUTPUT);
-  digitalWrite(PIN_CS_VR, HIGH);
+  pinMode(PIN_SOUND_ON, OUTPUT);
+  digitalWrite(PIN_SOUND_ON, LOW);
+  pinMode(PIN_VOLUMN, OUTPUT);
+  digitalWrite(PIN_VOLUMN, HIGH);
 
   // Screen Init.
   u8x8.begin();
@@ -94,46 +105,79 @@ void setup() {
   u8x8.setFont(u8x8_font_profont29_2x3_f);
   u8x8.drawString(0,0,"Freq :");
   u8x8.drawString(4,4,String(int(freq)).c_str());
+
+  // Load the volumn from the previous setting
 }
+
+bool L1;
+bool L2;
 
 void loop() {
 
-  if (Serial.available()){
-    int a = Serial.parseInt();
-    if (a == 1){
-      digitalWrite(PIN_OPTO, HIGH);
-    }
-    else if (a==0) {
-      digitalWrite(PIN_OPTO, LOW);
-    }
-    else {
-      byte data = a;
-      Serial.println("data transferred");
-      SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
-      digitalWrite(PIN_CS_VR, LOW);
-      SPI.transfer(0);
-      SPI.transfer(data);
-      digitalWrite(PIN_CS_VR, HIGH);
-    }
-  }
-  
-  // Check Button
+  //if (Serial.available()){
+  //  int a = Serial.parseInt();
+  //  if (a == 1){
+  //    digitalWrite(PIN_SOUND_ON, HIGH);
+  //  }
+  //  else if (a==0) {
+  //    digitalWrite(PIN_SOUND_ON, LOW);
+  //  }
+  //  else {
+  //    byte data = a;
+  //    Serial.println("data transferred");
+  //    SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
+  //    digitalWrite(PIN_VOLUMN, LOW);
+  //    SPI.transfer(0);
+  //    SPI.transfer(data);
+  //    digitalWrite(PIN_VOLUMN, HIGH);
+  //  }
+  //}
+
+// +---------------------------------------------------------------------------------+
+// |                                 Check Button Click                              |
+// +---------------------------------------------------------------------------------+
   if (digitalRead(PIN_BUTTON)==LOW){ // LOW on press
     if(buttonStatus == false){
-      if (!changeFreq){
+      if (!isSetMode){
         u8x8.clearLine(0);
         u8x8.clearLine(1);
         u8x8.clearLine(2);
-        u8x8.drawString(0,0,"Set Freq");
-        changeFreq = true;
+        switch(mode){
+          case 0:
+            u8x8.drawString(0,0,"Set Freq");
+            break;
+          case 1:
+            u8x8.drawString(0,0,"Set Vol");
+            break;
+          case 2:
+            u8x8.drawString(0,0,"Set Smooth");
+            break;
+          case 3:
+            u8x8.drawString(0,0,"Manual :");
+            break;
+        }
+        isSetMode = true;
       }
       else {
         setFreq(freq);
         u8x8.clearLine(0);
         u8x8.clearLine(1);
         u8x8.clearLine(2);
-        u8x8.drawString(0,0,"Freq :");
-        changeFreq = false;
+        switch(mode){
+          case 0:
+            u8x8.drawString(0,0,"Freq :");
+            break;
+          case 1:
+            u8x8.drawString(0,0,"Vol :");
+            break;
+          case 2:
+            u8x8.drawString(0,0,"Smooth :");
+            break;
+          case 3:
+            u8x8.drawString(0,0,"Manual :");
+            break;
+        }
+        isSetMode = false;
       }      
       Serial.println("Button Clicked");
       buttonStatus = true;
@@ -143,20 +187,20 @@ void loop() {
     buttonStatus = false;
   }
 
-  bool L1 = !digitalRead(PIN_ENCODER1);
-  bool L2 = !digitalRead(PIN_ENCODER2);
+// +---------------------------------------------------------------------------------+
+// |                               Check Button Rotation                             |
+// +---------------------------------------------------------------------------------+
+  L1 = !digitalRead(PIN_ENCODER1);
+  L2 = !digitalRead(PIN_ENCODER2);
 
   if(L1 || L2){
     if(L1 && !L2){ 
       if(waitForL2 == false){
         waitForL2 = true;  
       }
-      if(waitForL1 == true) {
-        if (changeFreq){
-          freq = min(20000, freq+500);
-          updateFreqScreen(freq);
-        }
-        Serial.println("L1");
+      if(waitForL1 == true) { // CW rotation
+        if (isSetMode) changeValue(true);
+        else changeMode(true);
         waitForL1 = false;
       }
     }
@@ -165,12 +209,9 @@ void loop() {
       if(waitForL1 == false) {
         waitForL1 = true;
       }
-      if(waitForL2 == true) {
-        if (changeFreq){
-          freq = max(500, freq-500);
-          updateFreqScreen(freq); 
-        }
-        Serial.println("L2");
+      if(waitForL2 == true) { // CCW rotation
+        if (isSetMode) changeValue(false); 
+        else changeMode(false);
         waitForL2 = false;
       }
     }
@@ -180,6 +221,77 @@ void loop() {
     waitForL2 = false;
   }
 
+}
+// update mode
+void changeMode(bool isIncrease) {
+  if (isIncrease) {
+    if (mode < 3) mode++;
+    else mode = 0;
+  }
+  else {
+    if (mode > 0) mode--;
+    else mode = 3;
+  }
+
+  // clear all lines
+  u8x8.clear();
+  switch(mode){
+    case 0:
+      u8x8.drawString(0,0,"Freq :");
+      u8x8.drawString(4,4,String(int(freq)).c_str());
+      break;
+    case 1:
+      u8x8.drawString(0,0,"Vol :");
+      u8x8.drawString(4,4,String(int(volumn)).c_str());
+      break;
+    case 2:
+      u8x8.drawString(0,0,"Smooth :");
+      u8x8.drawString(4,4,String(int(rampUp)).c_str());
+      break;
+    case 3:
+      u8x8.drawString(0,0,"Manual :");
+      if (soundOn) u8x8.drawString(4,4,"ON");
+      else u8x8.drawString(4,4,"OFF");
+      
+      break;
+  }
+}
+
+void changeValue(bool isIncrease) {
+  // clear value
+  u8x8.clearLine(3);
+  u8x8.clearLine(4);
+  u8x8.clearLine(5);
+  u8x8.clearLine(6);
+  u8x8.clearLine(7);
+
+  switch(mode){
+    case 0:
+      if (isIncrease) freq = min(freq + Chn_freq, Max_freq);
+      else freq = max(freq - Chn_freq, Min_freq); 
+      setFreq(freq);
+      u8x8.drawString(4,4,String(int(freq)).c_str());
+      break;
+    case 1:
+      if (isIncrease) volumn = min(volumn + Chn_volumn, Max_volumn);
+      else volumn = max(volumn - Chn_volumn, Min_volumn); 
+      setVolumn(volumn);
+      u8x8.drawString(4,4,String(int(volumn)).c_str());
+      break;
+    case 2:
+      if (isIncrease) rampUp = min(rampUp + Chn_rampUp, Max_rampUp);
+      else rampUp = max(rampUp - Chn_rampUp, Min_rampUp); 
+      u8x8.drawString(0,0,"Smooth :");
+      u8x8.drawString(4,4,String(int(rampUp)).c_str());
+      break;
+    case 3:
+      soundOn = !soundOn;
+      u8x8.drawString(0,0,"Manual :");
+      if (soundOn) u8x8.drawString(4,4,"ON");
+      else u8x8.drawString(4,4,"OFF");
+      digitalWrite(PIN_SOUND_ON, soundOn);
+      break;
+  }
 }
 
 // update frequency screen 
@@ -231,3 +343,13 @@ word getMSB(double freq)
   int freqReg = int(round(freq*pow(2,28)/CLK));
   return (freqReg >> 14) + 0b0100000000000000;
 }
+
+void setVolumn(int volumn){
+  byte data = volumn;
+  SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
+  digitalWrite(PIN_VOLUMN, LOW);
+  SPI.transfer(0);
+  SPI.transfer(data);
+  digitalWrite(PIN_VOLUMN, HIGH);
+}
+  
