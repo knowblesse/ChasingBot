@@ -20,7 +20,7 @@
 // +---------------------------------------------------------------------------------+
 // Default pins for I2C.
 // SCL : A5, SDA : A4
-U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(0);
+U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(2);
 
 // +---------------------------------------------------------------------------------+
 // |                            AD9833 Configuration                                 |
@@ -101,6 +101,7 @@ void setup() {
 
   // Screen Init.
   u8x8.begin();
+  u8x8.setFlipMode(true);
   u8x8.setPowerSave(0);
   u8x8.setFont(u8x8_font_profont29_2x3_f);
   u8x8.drawString(0,0,"Freq :");
@@ -150,10 +151,10 @@ void loop() {
             u8x8.drawString(0,0,"Set Vol");
             break;
           case 2:
-            u8x8.drawString(0,0,"Set Smooth");
+            u8x8.drawString(0,0,"Set Smth");
             break;
           case 3:
-            u8x8.drawString(0,0,"Manual :");
+            u8x8.drawString(0,0,"Set Man");
             break;
         }
         isSetMode = true;
