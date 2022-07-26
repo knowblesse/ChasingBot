@@ -13,14 +13,14 @@
 #define PIN_BUTTON 6 // encoder push button
 #define PIN_CSON 8 // Input signal for CS on
 #define PIN_SOUND_ON 9
-#define PIN_VOLUMN 10 // variable registor
+#define PIN_VOLUME 10 // variable registor
 
 // +---------------------------------------------------------------------------------+
 // |                   SSD1306 based OLED Screen Configuration                       |
 // +---------------------------------------------------------------------------------+
 // Default pins for I2C.
 // SCL : A5, SDA : A4
-U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(2);
+U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(U8X8_PIN_NONE);
 
 // +---------------------------------------------------------------------------------+
 // |                            AD9833 Configuration                                 |
@@ -45,11 +45,11 @@ static word reset = 0x2100; //   0b0010 0001 0000 0000
 static word control = 0x2000; // 0b0010 0000 0000 0000
 static word phase = 0xC000; //   0b1100 0000 0000 0000
 
-// functions
+// Function Declaration
 word getLSB(double freq);
 word getMSB(double freq);
 void setFreq(double freq);
-void setVolumn(int volumn);
+void setvolume(int volume);
 void changeMode(bool isIncrease);
 void changeValue(bool isIncrease);
 
@@ -58,32 +58,43 @@ bool buttonStatus = false;
 bool waitForL1 = false;
 bool waitForL2 = false;
 
-// Freq state
+// Setting Value
 bool isSetMode = false;
-int freq = 2000;
-int volumn = 20;
-int rampUp = 0;
 bool soundOn = false;
+int freq = 2000;
+int volume = 20;
+unsigned long rampUp = 0;
 
 // Min Max Value
 int Max_freq = 10000;
 int Min_freq = 500;
 int Chn_freq = 500;
-int Max_volumn = 240;
-int Min_volumn = 30;
-int Chn_volumn = 5;
+int Max_volume = 240;
+int Min_volume = 30;
+int Chn_volume = 1;
 int Max_rampUp = 500;
 int Min_rampUp = 0;
 int Chn_rampUp = 100;
 
-int mode = 0; // 0:Freq, 1:Volumn, 2:Ramp Up, 3:Manual 
+// RampUp Values
+bool isUnderRampUp = false;
+int rampUp_min = Min_volume;
+unsigned long changeStartTime; // time when the rampUp started. 
+unsigned long currentTime;
 
+int mode = 0; // 0:Freq, 1:volume, 2:Ramp Up, 3:Manual 
 
 void setup() {
   
   Serial.begin(9600);
   SPI.begin();
 
+//  // Screen Reset
+//  pinMode(2, OUTPUT);
+//  digitalWrite(2, LOW);
+//  delay(100);
+//  digitalWrite(2, HIGH);
+  
   // CS Init.
   pinMode(PIN_CS_AD9833, OUTPUT);
   digitalWrite(PIN_CS_AD9833, LOW);
@@ -93,11 +104,14 @@ void setup() {
   pinMode(PIN_ENCODER2, INPUT);
   pinMode(PIN_BUTTON, INPUT_PULLUP);
 
+  // CS On Input Signal Init.
+  pinMode(PIN_CSON, INPUT_PULLUP);
+
   // Tone On/Off Init.
   pinMode(PIN_SOUND_ON, OUTPUT);
   digitalWrite(PIN_SOUND_ON, LOW);
-  pinMode(PIN_VOLUMN, OUTPUT);
-  digitalWrite(PIN_VOLUMN, HIGH);
+  pinMode(PIN_VOLUME, OUTPUT);
+  digitalWrite(PIN_VOLUME, HIGH);
 
   // Screen Init.
   u8x8.begin();
@@ -107,32 +121,13 @@ void setup() {
   u8x8.drawString(0,0,"Freq :");
   u8x8.drawString(4,4,String(int(freq)).c_str());
 
-  // Load the volumn from the previous setting
+  // Load the volume from the previous setting
 }
 
 bool L1;
 bool L2;
 
 void loop() {
-
-  //if (Serial.available()){
-  //  int a = Serial.parseInt();
-  //  if (a == 1){
-  //    digitalWrite(PIN_SOUND_ON, HIGH);
-  //  }
-  //  else if (a==0) {
-  //    digitalWrite(PIN_SOUND_ON, LOW);
-  //  }
-  //  else {
-  //    byte data = a;
-  //    Serial.println("data transferred");
-  //    SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
-  //    digitalWrite(PIN_VOLUMN, LOW);
-  //    SPI.transfer(0);
-  //    SPI.transfer(data);
-  //    digitalWrite(PIN_VOLUMN, HIGH);
-  //  }
-  //}
 
 // +---------------------------------------------------------------------------------+
 // |                                 Check Button Click                              |
@@ -222,7 +217,35 @@ void loop() {
     waitForL2 = false;
   }
 
+// +---------------------------------------------------------------------------------+
+// |                                     CS On Off                                   |
+// +---------------------------------------------------------------------------------+
+  if(soundOn){
+    if(!isUnderRampUp){
+      // start ramping up
+      changeStartTime = millis();
+      isUnderRampUp = true;
+      if (rampUp == 0){
+        setvolume(volume);
+      }
+      else {
+        setvolume(rampUp_min); 
+      }
+      digitalWrite(PIN_SOUND_ON, HIGH);
+    }
+    else {
+      currentTime = millis() - changeStartTime; 
+      if (currentTime < rampUp){
+        setvolume(round(currentTime/(double)rampUp*(volume - rampUp_min))+rampUp_min);
+      }
+    }
+  } 
+  else {
+    digitalWrite(PIN_SOUND_ON, LOW);
+    isUnderRampUp = false;
+  }
 }
+
 // update mode
 void changeMode(bool isIncrease) {
   if (isIncrease) {
@@ -243,7 +266,7 @@ void changeMode(bool isIncrease) {
       break;
     case 1:
       u8x8.drawString(0,0,"Vol :");
-      u8x8.drawString(4,4,String(int(volumn)).c_str());
+      u8x8.drawString(4,4,String(int(volume)).c_str());
       break;
     case 2:
       u8x8.drawString(0,0,"Smooth :");
@@ -274,10 +297,10 @@ void changeValue(bool isIncrease) {
       u8x8.drawString(4,4,String(int(freq)).c_str());
       break;
     case 1:
-      if (isIncrease) volumn = min(volumn + Chn_volumn, Max_volumn);
-      else volumn = max(volumn - Chn_volumn, Min_volumn); 
-      setVolumn(volumn);
-      u8x8.drawString(4,4,String(int(volumn)).c_str());
+      if (isIncrease) volume = min(volume + Chn_volume, Max_volume);
+      else volume = max(volume - Chn_volume, Min_volume); 
+      setvolume(volume);
+      u8x8.drawString(4,4,String(int(volume)).c_str());
       break;
     case 2:
       if (isIncrease) rampUp = min(rampUp + Chn_rampUp, Max_rampUp);
@@ -290,20 +313,10 @@ void changeValue(bool isIncrease) {
       u8x8.drawString(0,0,"Manual :");
       if (soundOn) u8x8.drawString(4,4,"ON");
       else u8x8.drawString(4,4,"OFF");
-      digitalWrite(PIN_SOUND_ON, soundOn);
       break;
   }
 }
 
-// update frequency screen 
-void updateFreqScreen(double freq){
-  u8x8.clearLine(3);
-  u8x8.clearLine(4);
-  u8x8.clearLine(5);
-  u8x8.clearLine(6);
-  u8x8.clearLine(7);
-  u8x8.drawString(4,4,String(int(freq)).c_str());
-}
 // set frequency registor
 void setFreq(double freq){
   SPI.beginTransaction(SPISettings(40000000, MSBFIRST, SPI_MODE2));
@@ -345,12 +358,12 @@ word getMSB(double freq)
   return (freqReg >> 14) + 0b0100000000000000;
 }
 
-void setVolumn(int volumn){
-  byte data = volumn;
+void setvolume(int volume){
+  byte data = 255 - volume;
   SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
-  digitalWrite(PIN_VOLUMN, LOW);
+  digitalWrite(PIN_VOLUME, LOW);
   SPI.transfer(0);
   SPI.transfer(data);
-  digitalWrite(PIN_VOLUMN, HIGH);
+  digitalWrite(PIN_VOLUME, HIGH);
 }
   
