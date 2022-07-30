@@ -20,7 +20,7 @@
 // +---------------------------------------------------------------------------------+
 // Default pins for I2C.
 // SCL : A5, SDA : A4
-U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(U8X8_PIN_NONE);
+U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(2);
 
 // +---------------------------------------------------------------------------------+
 // |                            AD9833 Configuration                                 |
@@ -49,7 +49,7 @@ static word phase = 0xC000; //   0b1100 0000 0000 0000
 word getLSB(double freq);
 word getMSB(double freq);
 void setFreq(double freq);
-void setvolume(int volume);
+void setVolume(int volume);
 void changeMode(bool isIncrease);
 void changeValue(bool isIncrease);
 
@@ -226,17 +226,17 @@ void loop() {
       changeStartTime = millis();
       isUnderRampUp = true;
       if (rampUp == 0){
-        setvolume(volume);
+        setVolume(volume);
       }
       else {
-        setvolume(rampUp_min); 
+        setVolume(rampUp_min); 
       }
       digitalWrite(PIN_SOUND_ON, HIGH);
     }
     else {
       currentTime = millis() - changeStartTime; 
       if (currentTime < rampUp){
-        setvolume(round(currentTime/(double)rampUp*(volume - rampUp_min))+rampUp_min);
+        setVolume(round(currentTime/(double)rampUp*(volume - rampUp_min))+rampUp_min);
       }
     }
   } 
@@ -299,7 +299,7 @@ void changeValue(bool isIncrease) {
     case 1:
       if (isIncrease) volume = min(volume + Chn_volume, Max_volume);
       else volume = max(volume - Chn_volume, Min_volume); 
-      setvolume(volume);
+      setVolume(volume);
       u8x8.drawString(4,4,String(int(volume)).c_str());
       break;
     case 2:
@@ -358,7 +358,7 @@ word getMSB(double freq)
   return (freqReg >> 14) + 0b0100000000000000;
 }
 
-void setvolume(int volume){
+void setVolume(int volume){
   byte data = 255 - volume;
   SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
   digitalWrite(PIN_VOLUME, LOW);
@@ -366,4 +366,3 @@ void setvolume(int volume){
   SPI.transfer(data);
   digitalWrite(PIN_VOLUME, HIGH);
 }
-  
