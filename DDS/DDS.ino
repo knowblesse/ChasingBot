@@ -20,7 +20,7 @@
 // +---------------------------------------------------------------------------------+
 // Default pins for I2C.
 // SCL : A5, SDA : A4
-U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(2);
+U8X8_SSD1306_128X64_NONAME_HW_I2C u8x8(U8X8_PIN_NONE);
 
 // +---------------------------------------------------------------------------------+
 // |                            AD9833 Configuration                                 |
@@ -61,43 +61,53 @@ bool waitForL2 = false;
 // Setting Value
 bool isSetMode = false;
 bool soundOn = false;
+bool prevSoundOn = false;
 int freq = 2000;
-int volume = 20;
-unsigned long rampUp = 0;
+int volume = 100;
+unsigned long rampUp = 100;
 
 // Min Max Value
 int Max_freq = 10000;
 int Min_freq = 500;
 int Chn_freq = 500;
-int Max_volume = 240;
-int Min_volume = 30;
+int Max_volume = 150;
+int Min_volume = 1;
 int Chn_volume = 1;
 int Max_rampUp = 500;
 int Min_rampUp = 0;
 int Chn_rampUp = 100;
 
 // RampUp Values
-bool isUnderRampUp = false;
-int rampUp_min = Min_volume;
+int rampUpStatus = 2; // 0 : Not Initiated, 1 : Under Rampup, 2 : Done
 unsigned long changeStartTime; // time when the rampUp started. 
 unsigned long currentTime;
 
+int volumeList[150] = {\
+  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,\
+  48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,\
+  64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,\
+  80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91,\
+  96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107,\
+  112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123,\
+  128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139,\
+  144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155,\
+  160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171,\
+  172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183,\
+  184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195,\
+  196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207,\
+  208, 209, 210, 211, 212, 213}; // 150
+  
 int mode = 0; // 0:Freq, 1:volume, 2:Ramp Up, 3:Manual 
 
 void setup() {
-  
   Serial.begin(9600);
+  Serial.setTimeout(2000);
+  Serial.println("Started");
   SPI.begin();
-
-//  // Screen Reset
-//  pinMode(2, OUTPUT);
-//  digitalWrite(2, LOW);
-//  delay(100);
-//  digitalWrite(2, HIGH);
   
   // CS Init.
   pinMode(PIN_CS_AD9833, OUTPUT);
-  digitalWrite(PIN_CS_AD9833, LOW);
+  digitalWrite(PIN_CS_AD9833, HIGH);
 
   // Button Init.
   pinMode(PIN_ENCODER1, INPUT);
@@ -118,10 +128,21 @@ void setup() {
   u8x8.setFlipMode(true);
   u8x8.setPowerSave(0);
   u8x8.setFont(u8x8_font_profont29_2x3_f);
+  u8x8.drawString(0,0,"Tone");
+  u8x8.drawString(0,4, "Gen V1");
+
+  while (millis() < 2000){};
+  
+  // Load Default Settings
+  setFreq(freq);
+  setVolume(volume);
+  
+  Serial.println(freq);
+
+
+  u8x8.clear();
   u8x8.drawString(0,0,"Freq :");
   u8x8.drawString(4,4,String(int(freq)).c_str());
-
-  // Load the volume from the previous setting
 }
 
 bool L1;
@@ -155,7 +176,7 @@ void loop() {
         isSetMode = true;
       }
       else {
-        setFreq(freq);
+        //setFreq(freq);
         u8x8.clearLine(0);
         u8x8.clearLine(1);
         u8x8.clearLine(2);
@@ -175,7 +196,6 @@ void loop() {
         }
         isSetMode = false;
       }      
-      Serial.println("Button Clicked");
       buttonStatus = true;
     }
   }
@@ -220,30 +240,52 @@ void loop() {
 // +---------------------------------------------------------------------------------+
 // |                                     CS On Off                                   |
 // +---------------------------------------------------------------------------------+
+  if(soundOn != prevSoundOn) rampUpStatus = 0;
+  
   if(soundOn){
-    if(!isUnderRampUp){
+    if(rampUpStatus == 0){
       // start ramping up
       changeStartTime = millis();
-      isUnderRampUp = true;
       if (rampUp == 0){
+        rampUpStatus = 2;
         setVolume(volume);
       }
       else {
-        setVolume(rampUp_min); 
+        rampUpStatus = 1;
+        setVolume(Min_volume);
       }
       digitalWrite(PIN_SOUND_ON, HIGH);
     }
-    else {
+    else if (rampUpStatus == 1) {
       currentTime = millis() - changeStartTime; 
       if (currentTime < rampUp){
-        setVolume(round(currentTime/(double)rampUp*(volume - rampUp_min))+rampUp_min);
+        setVolume(round(currentTime/(double)rampUp*(volume - Min_volume))+Min_volume);
       }
+      else rampUpStatus = 2;
     }
   } 
   else {
-    digitalWrite(PIN_SOUND_ON, LOW);
-    isUnderRampUp = false;
+    if(rampUpStatus == 0){
+      // start ramping up
+      changeStartTime = millis();
+      if (rampUp == 0){
+        rampUpStatus = 2;
+        digitalWrite(PIN_SOUND_ON, LOW);
+      }
+       else rampUpStatus = 1;
+    }
+    else if (rampUpStatus == 1) {
+      currentTime = millis() - changeStartTime; 
+      if (currentTime < rampUp){
+        setVolume(volume - round(currentTime/(double)rampUp*(volume - Min_volume)));
+      }
+      else {
+        rampUpStatus = 2;
+        digitalWrite(PIN_SOUND_ON, LOW);
+      }
+    }
   }
+  prevSoundOn = soundOn;
 }
 
 // update mode
@@ -256,7 +298,6 @@ void changeMode(bool isIncrease) {
     if (mode > 0) mode--;
     else mode = 3;
   }
-
   // clear all lines
   u8x8.clear();
   switch(mode){
@@ -276,7 +317,6 @@ void changeMode(bool isIncrease) {
       u8x8.drawString(0,0,"Manual :");
       if (soundOn) u8x8.drawString(4,4,"ON");
       else u8x8.drawString(4,4,"OFF");
-      
       break;
   }
 }
@@ -319,15 +359,9 @@ void changeValue(bool isIncrease) {
 
 // set frequency registor
 void setFreq(double freq){
-  SPI.beginTransaction(SPISettings(40000000, MSBFIRST, SPI_MODE2));
-  Serial.print("Set Freq : ");
-  Serial.println(freq);
+  SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE2));
   word lsb = getLSB(freq);
   word msb = getMSB(freq);
-  Serial.print("LSB :");
-  Serial.println(lsb, HEX);
-  Serial.print("MSB :");
-  Serial.println(msb, HEX);
   // Start Writing
   digitalWrite(PIN_CS_AD9833, LOW);
   SPI.transfer16(reset); // Reset 
@@ -344,6 +378,9 @@ void setFreq(double freq){
   digitalWrite(PIN_CS_AD9833, LOW);
   SPI.transfer16(control);
   digitalWrite(PIN_CS_AD9833, HIGH);
+  SPI.endTransaction();
+  Serial.print("Freq : ");
+  Serial.println(freq);
 }
 
 // Calculate Frequency setting words
@@ -359,10 +396,13 @@ word getMSB(double freq)
 }
 
 void setVolume(int volume){
-  byte data = 255 - volume;
+  byte data = 255 - volumeList[volume-1];
   SPI.beginTransaction(SPISettings(4000000, MSBFIRST, SPI_MODE0));
   digitalWrite(PIN_VOLUME, LOW);
   SPI.transfer(0);
   SPI.transfer(data);
   digitalWrite(PIN_VOLUME, HIGH);
+  SPI.endTransaction();
+  Serial.print("Volume : ");
+  Serial.println(volume);
 }
