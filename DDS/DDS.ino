@@ -160,53 +160,10 @@ void loop() {
 // |                                 Check Button Click                              |
 // +---------------------------------------------------------------------------------+
   if (digitalRead(PIN_BUTTON)==LOW){ // LOW on press
-    if(buttonStatus == false){
-      if (!isSetMode){
-        u8x8.clearLine(0);
-        u8x8.clearLine(1);
-        u8x8.clearLine(2);
-        switch(mode){
-          case 0:
-            u8x8.drawString(0,0,"Set Freq");
-            break;
-          case 1:
-            u8x8.drawString(0,0,"Set Vol");
-            break;
-          case 2:
-            u8x8.drawString(0,0,"Set Smth");
-            break;
-          case 3:
-            u8x8.drawString(0,0,"Set Man");
-            break;
-        }
-        isSetMode = true;
-      }
-      else {
-        //setFreq(freq);
-        u8x8.clearLine(0);
-        u8x8.clearLine(1);
-        u8x8.clearLine(2);
-        switch(mode){
-          case 0:
-            u8x8.drawString(0,0,"Freq :");
-            break;
-          case 1:
-            u8x8.drawString(0,0,"Vol :");
-            break;
-          case 2:
-            u8x8.drawString(0,0,"Smooth :");
-            break;
-          case 3:
-            u8x8.drawString(0,0,"Manual :");
-            break;
-        }
-        isSetMode = false;
-      }      
-      buttonStatus = true;
-    }
+    manualSoundOn = true;
   }
   else {
-    buttonStatus = false;
+    manualSoundOn = false;
   }
 
 // +---------------------------------------------------------------------------------+
