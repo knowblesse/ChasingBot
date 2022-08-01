@@ -5,9 +5,11 @@
 #include <Arduino.h>
 #include <U8x8lib.h>
 #include <SPI.h>
+
 // +---------------------------------------------------------------------------------+
 // |                             Digial Pin Configuration                            |
 // +---------------------------------------------------------------------------------+
+#define PIN_INDICATOR 2 // Screen reset pin or LED
 #define PIN_ENCODER1 4
 #define PIN_ENCODER2 5
 #define PIN_BUTTON 6 // encoder push button
@@ -61,9 +63,10 @@ bool waitForL2 = false;
 // Setting Value
 bool isSetMode = false;
 bool soundOn = false;
+bool manualSoundOn = false;
 bool prevSoundOn = false;
 int freq = 2000;
-int volume = 100;
+int volume = 140;
 unsigned long rampUp = 100;
 
 // Min Max Value
@@ -104,6 +107,9 @@ void setup() {
   Serial.setTimeout(2000);
   Serial.println("Started");
   SPI.begin();
+
+  // CS Indicator
+  pinMode(PIN_INDICATOR, OUTPUT);
   
   // CS Init.
   pinMode(PIN_CS_AD9833, OUTPUT);
@@ -240,9 +246,11 @@ void loop() {
 // +---------------------------------------------------------------------------------+
 // |                                     CS On Off                                   |
 // +---------------------------------------------------------------------------------+
+  soundOn = manualSoundOn || !digitalRead(PIN_CSON);
   if(soundOn != prevSoundOn) rampUpStatus = 0;
   
   if(soundOn){
+    digitalWrite(PIN_INDICATOR, HIGH);
     if(rampUpStatus == 0){
       // start ramping up
       changeStartTime = millis();
@@ -265,6 +273,7 @@ void loop() {
     }
   } 
   else {
+    digitalWrite(PIN_INDICATOR, LOW);
     if(rampUpStatus == 0){
       // start ramping up
       changeStartTime = millis();
@@ -315,7 +324,7 @@ void changeMode(bool isIncrease) {
       break;
     case 3:
       u8x8.drawString(0,0,"Manual :");
-      if (soundOn) u8x8.drawString(4,4,"ON");
+      if (manualSoundOn) u8x8.drawString(4,4,"ON");
       else u8x8.drawString(4,4,"OFF");
       break;
   }
@@ -349,9 +358,9 @@ void changeValue(bool isIncrease) {
       u8x8.drawString(4,4,String(int(rampUp)).c_str());
       break;
     case 3:
-      soundOn = !soundOn;
+      manualSoundOn = !manualSoundOn;
       u8x8.drawString(0,0,"Manual :");
-      if (soundOn) u8x8.drawString(4,4,"ON");
+      if (manualSoundOn) u8x8.drawString(4,4,"ON");
       else u8x8.drawString(4,4,"OFF");
       break;
   }
