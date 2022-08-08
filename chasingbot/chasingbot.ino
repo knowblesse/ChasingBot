@@ -5,40 +5,26 @@ chasingbot.ino
        Required Librarys
 ---------------------------------
 SoftwareSerial - Default 
-SD - Defulat
-TMRpcm - Install from library manager
 
 ---------------------------------
              Warings
 ---------------------------------
-*Music file must have following format
-  - unsigned 8bit pcm
-  - 8~32kHz
-  - mono
 *The unit of all time variable is "seconds"
   - if the variable ends with "_ms", then it is in "milliseconds"  
 */
 
 // Pin Numbers
-// SD card DI - 51
-// SD card DO - 50
-// SD card CLK - 52
-#define SD_PIN 53
 #define SPEAKER_PIN 11
 #define BT_RX 31
 #define BT_TX 30
+#define PIN_TONE_GEN 45
 
 //Library
-#include <pcmRF.h>
-#include <TMRpcm.h>
-#include <pcmConfig.h>
 #include <SoftwareSerial.h>
-#include <SD.h>
 #include "motorDriver.h"
 #include <EEPROM.h>
 
 SoftwareSerial BT(BT_RX, BT_TX);
-TMRpcm tmrpcm;
 
 // Welcome Message
 #define MSGSIZE 1
@@ -77,7 +63,6 @@ struct PersonalParam
   String musicFileName = "sin1.wav";
 };
 
-
 int mode; // Experiment Mode (ExpMode)
 PersonalParam pParam; // Personal Parameter
 ExpParam param; // Experiment Parameter
@@ -92,20 +77,13 @@ void setup()
   Serial1.begin(115200); // SmartPhone 
   BT.begin(115200); // ANY-MAZE
 
+  // Init. Tone Gen
+  pinMode(PIN_TONE_GEN, OUTPUT);
+  digitalWrite(PIN_TONE_GEN, LOW);
+  
   // Init. Motor
   motorInit();
 
-  // Init. Speaker
-  tmrpcm.speakerPin = SPEAKER_PIN; 
-  tmrpcm.disable();
-
-  // Init. SD Card
-  while (!SD.begin(SD_PIN)) 
-  {
-    Serial1.println("No SD card");
-    delay(1000);
-  }
-  
   while(true)
   {
     if(Serial1.available() > 0 && char(Serial1.read()) >= 65) break;
@@ -323,11 +301,11 @@ while(true)
     // if cs_duration is zero, then skip the CS presentation
     if(param.cs_duration > 0)
     {
-      tmrpcm.play(pParam.musicFileName.c_str());
       BT.write(letter_cson);
       Serial1.print(" CS ");
       Serial1.print(param.cs_duration,2);
       Serial1.print("s ");
+      digitalWrite(PIN_TONE_GEN, HIGH);
       isCSOn = true;
     }
 
@@ -357,8 +335,8 @@ while(true)
       // check if cs_duration has reached
       if(isCSOn && (time_from_trial_onset_ms > param.cs_duration*1000))
       {
-        tmrpcm.disable();
         BT.write(letter_csoff);
+        digitalWrite(PIN_TONE_GEN, LOW);
         isCSOn = false;
       }
 
