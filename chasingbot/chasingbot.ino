@@ -1,5 +1,6 @@
 /*
 chasingbot.ino
+Ver 1.0.1
 22FEB11
 ---------------------------------
        Required Librarys
@@ -108,7 +109,7 @@ void setup()
         case 'a':
           Serial1.println("Choi lab 2.5nd & Crazy Rabbit");
           // All parameters are in seconds
-          pParam.cndParam.habituation_time = 120;
+          pParam.cndParam.habituation_time = 300;
           pParam.cndParam.cs_duration = 10;
           pParam.cndParam.us_onset = 7.5; 
           pParam.cndParam.us_duration_min = 2.5;
@@ -117,13 +118,13 @@ void setup()
           pParam.cndParam.isi_duration_max = 50;
           pParam.cndParam.num_trial = 5;
 
-          pParam.extParam.habituation_time = 120;
+          pParam.extParam.habituation_time = 300;
           pParam.extParam.cs_duration = 10;
           pParam.extParam.isi_duration_min = 50;
           pParam.extParam.isi_duration_max = 50;
           pParam.extParam.num_trial = 30;
 
-          pParam.retParam.habituation_time = 120;
+          pParam.retParam.habituation_time = 300;
           pParam.retParam.cs_duration = 10;
           pParam.retParam.isi_duration_min = 50;
           pParam.retParam.isi_duration_max = 50;
