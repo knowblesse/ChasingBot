@@ -1,37 +1,6 @@
 %% FiberPhotometryScripts
 % @Knoblesse 2022
  
- 
-%% Load TDT data
-data = TDTbin2mat('D:\Data\FiberPhotometry\FPM220808\ToneFib-220811-095218-retS');
- 
-CSON = data.epocs.CSON.onset;
-CSOF = data.epocs.CSOF.onset;
-fs = data.streams.x405C.fs;
- 
-if size(CSON, 1) == size(CSOF, 1)
-    CS = [CSON, CSOF];
-    numTrial = size(CS,1);
-else
-    error('CS Size mismatch!');
-end
-fprintf('Total CS : %d\n', size(CS,1));
- 
-figure('Position', [100, 859, 1083, 120]);
-subplot(1,1,1);
-hold on;
- 
-for trial = 1 : numTrial
-    fill(...
-        [CS(trial,1), CS(trial, 2), CS(trial, 2), CS(trial, 1)],...
-        [0, 0, 1, 1],...
-        'b',...
-        'FaceAlpha', 0.3,...
-        'LineStyle', 'None');
-end
- 
-clearvars -except CS data numTrial fs
- 
 %% Draw CS aligned Data
 TIMEWINDOW = [-5, 20];
 USoffset = 2.5; % sec. US starts <USoffset>seconds before CS ends.
