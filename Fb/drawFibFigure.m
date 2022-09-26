@@ -30,7 +30,6 @@ arguments
         %   Since the signal from the very beginning tend to fluctuate a lot, sufficient value is
         %   necessary.
     options.draw_total_result logical = true; % if false, only draw the signal from each trial.
-    options.exp_type string = autoDetectExpType(Path); % experiment type.
     options.extinction_trials_per_graph (1,1) double = 6; % number of trials to plot in one graph in Extinction data.
     
 end
@@ -53,6 +52,7 @@ end
 
 %% Load Data 
 Data = loadFibData(Path, 'verbose', options.verbose);
+exp_type = autoDetectExpType(Data.path);
 if options.verbose
     fprintf('drawFibFigure : Data loaded.\n');
 end
@@ -70,14 +70,14 @@ end
 
 %% Create a figure
 fig = figure(...
-    'Name', sprintf("%s : %s - %s", options.exp_type, exp_info.exp_subject, exp_info.exp_date),...
+    'Name', sprintf("%s : %s - %s", exp_type, exp_info.exp_subject, exp_info.exp_date),...
     'Position', [180, 500, 1600, 300]);
 
 %% Experiment variables
 numTrial = size(Data.cs, 1);
 
 % check if num CS can be divided by extinction_trials_per_graph value 
-if options.exp_type == "Extinction"
+if exp_type == "Extinction"
     if rem(numTrial, options.extinction_trials_per_graph) ~= 0
         error('drawFibFigure : %d trials can not be divided by %d', numTrial, options.extinction_trials_per_graph);
     end
@@ -129,7 +129,7 @@ for trial = 1 : numTrial
 end
 
 %% Set values according to exp_type
-if options.exp_type == "Extinction"
+if exp_type == "Extinction"
     % number of figures
     numSubFigure = numTrial / options.extinction_trials_per_graph;
     % mean trial data
@@ -140,7 +140,7 @@ if options.exp_type == "Extinction"
                 , 2)...
             );
     % cs times
-    cs_times = repmat([0, diff(Data.cs(1,:))], 5, 1); % beware. only CS duration from the first trial is used.
+    cs_times = repmat([0, diff(Data.cs(1,:))], numSubFigure, 1); % beware. only CS duration from the first trial is used.
 else
     % number of figures
     numSubFigure = numTrial;
@@ -153,7 +153,7 @@ end
 
 for subfigure = 1 : numSubFigure
     % Calculate Time 
-    if options.exp_type == "Extinction"
+    if exp_type == "Extinction"
         windowStartIndex = round(-5 * Data.fs);
         windowEndIndex = windowStartIndex + windowIndexLength - 1;
         windowInSeconds = [windowStartIndex, windowEndIndex] ./ Data.fs;
@@ -188,7 +188,7 @@ for subfigure = 1 : numSubFigure
         tl = title('\Delta F / F');
     end
 
-    if options.exp_type == "Extinction"
+    if exp_type == "Extinction"
         tl.String = strcat(tl.String, ...
             sprintf(" - Trial %d-%d",...
                 options.extinction_trials_per_graph * (subfigure-1)+1, options.extinction_trials_per_graph * subfigure)...
@@ -210,7 +210,7 @@ for subfigure = 1 : numSubFigure
         'FaceAlpha', 0.1,...
         'LineStyle', 'None');
     
-    if options.exp_type == "Conditioning"
+    if exp_type == "Conditioning"
         fill([cs_times(subfigure,2) - options.us_offset, cs_times(subfigure,2), cs_times(subfigure,2), cs_times(subfigure,2) - options.us_offset],...
             [-100, -100, 100, 100],...
             'r',...
