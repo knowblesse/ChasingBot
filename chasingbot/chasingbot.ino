@@ -1,17 +1,9 @@
 /*
 chasingbot.ino
-Ver 1.0.1
-22FEB11
----------------------------------
-       Required Librarys
----------------------------------
-SoftwareSerial - Default 
-
----------------------------------
-             Warings
----------------------------------
-*The unit of all time variable is "seconds"
-  - if the variable ends with "_ms", then it is in "milliseconds"  
+Ver 1.0.2
+@Knowblesse
+Initial Commit : 22FEB07
+Current Edit : 22AUG10
 */
 
 // Pin Numbers
@@ -22,8 +14,8 @@ SoftwareSerial - Default
 
 //Library
 #include <SoftwareSerial.h>
-#include "motorDriver.h"
 #include <EEPROM.h>
+#include "motorDriver.h"
 
 SoftwareSerial BT(BT_RX, BT_TX);
 
@@ -61,10 +53,9 @@ struct PersonalParam
   ExpParam cndParam;
   ExpParam extParam; //ignores us_onset, us_duration
   ExpParam retParam; //ignores us_onset, us_duration
-  String musicFileName = "sin1.wav";
 };
 
-int mode; // Experiment Mode (ExpMode)
+int mode; // Experiment Mode
 PersonalParam pParam; // Personal Parameter
 ExpParam param; // Experiment Parameter
 
@@ -85,6 +76,7 @@ void setup()
   // Init. Motor
   motorInit();
 
+  // Wait for key input
   while(true)
   {
     if(Serial1.available() > 0 && char(Serial1.read()) >= 65) break;
@@ -100,15 +92,16 @@ void setup()
   Serial1.println("a. KI&YB   b. BM    c. QuickTestMode");
   while(invalidInput)
   {
-    if(Serial1.available() > 0)
+    if(Serial1.available())
     {
       switch(char(Serial1.read()))
       {
-        /* Change this part for a new parameter */
-        /*                BEGIN                 */
+        /* Change this part for a new parameter   */
+        /* The unit for the time parameter is sec */
+        /*                BEGIN                   */
         case 'a':
           Serial1.println("Choi lab 2.5nd & Crazy Rabbit");
-          // All parameters are in seconds
+          
           pParam.cndParam.habituation_time = 300;
           pParam.cndParam.cs_duration = 10;
           pParam.cndParam.us_onset = 7.5; 
@@ -130,12 +123,12 @@ void setup()
           pParam.retParam.isi_duration_max = 50;
           pParam.retParam.num_trial = 5;
 
-          pParam.musicFileName = "sin1.wav";
           invalidInput = false;
           break;
 
         case 'b':
           Serial1.println("Jay Park in the lab");
+          
           pParam.cndParam.habituation_time = 1;
           pParam.cndParam.cs_duration = 0;
           pParam.cndParam.us_onset = 0;
@@ -157,13 +150,13 @@ void setup()
           pParam.retParam.isi_duration_max = 31;
           pParam.retParam.num_trial = 1;
 
-          pParam.musicFileName = "sin1.wav";
           invalidInput = false;
           break;
         /*                   END                */
 
         case 'c':
           Serial1.println("Quick Test Mode");
+          
           pParam.cndParam.habituation_time = 10;
           pParam.cndParam.cs_duration = 10;
           pParam.cndParam.us_onset = 8;
@@ -184,6 +177,7 @@ void setup()
           pParam.retParam.isi_duration_min = 10;
           pParam.retParam.isi_duration_max = 10;
           pParam.retParam.num_trial = 5;
+          
           invalidInput = false;
           break;
 
@@ -204,10 +198,10 @@ void loop()
   /********************************************/
   bool invalidInput = true;
   Serial1.println("Which condition do you want?");
-  Serial1.println("a. Conditioning   b. Extinction   c. Retention/Renwal");
+  Serial1.println("a. Conditioning   b. Extinction   c. Retention/Renewal");
   while(invalidInput)
   {
-    if(Serial1.available() > 0)
+    if(Serial1.available())
     {
       switch(char(Serial1.read()))
       {
@@ -235,7 +229,7 @@ void loop()
         default:
           Serial1.println("Wrong Input");
           Serial1.println("Which condition do you want?");
-          Serial1.println("a. Conditioning   b. Extinction   c. Retention/Renwal");
+          Serial1.println("a. Conditioning   b. Extinction   c. Retention/Renewal");
           break;
       }
     }
@@ -245,16 +239,15 @@ void loop()
   /*             Start Experiment             */
   /********************************************/
   Serial1.println("Press 'a' to start the experiment");
-  // TODO : reset parameters
-while(true)
-  {
-    if (Serial1.available() > 0 && (char(Serial1.read()) == 'a'))
+  while(true)
     {
-      Serial1.println("Test Start");
-      BT.write(letter_EXStart);
-      break;
+      if (Serial1.available() && (char(Serial1.read()) == 'a'))
+      {
+        Serial1.println("Test Start");
+        BT.write(letter_EXStart);
+        break;
+      }
     }
-  }
 
   /********************************************/
   /*          Main Experiment Loop            */
@@ -267,7 +260,7 @@ while(true)
   while((millis() - hab_onset_time_ms) < param.habituation_time*1000)
   {
     // emergency stop
-    if (Serial1.available() > 0 && (char(Serial1.read()) == 's'))
+    if (Serial1.available() && (char(Serial1.read()) == 's'))
     {
       Serial1.println("Emergency Stop");
       BT.write(letter_EXEnd);
@@ -361,7 +354,7 @@ while(true)
       if(!isCSOn && !isUSArmed && !isUSOn) break;
 
       // emergency stop
-      if (Serial1.available() > 0 && (char(Serial1.read()) == 's'))
+      if (Serial1.available() && (char(Serial1.read()) == 's'))
       {
         Serial1.println("Emergency Stop");
         BT.write(letter_EXEnd);
@@ -377,7 +370,7 @@ while(true)
     while((millis() - iti_onset_time_ms) < iti_duration_ms)
     {
       // emergency stop
-      if (Serial1.available() > 0 && (char(Serial1.read()) == 's'))
+      if (Serial1.available() && (char(Serial1.read()) == 's'))
       {
         Serial1.println("Emergency Stop");
         BT.write(letter_EXEnd);
