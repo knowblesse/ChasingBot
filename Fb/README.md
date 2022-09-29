@@ -40,6 +40,16 @@ If the input tank does not belong to these types, raise error.
 `drawFibFigure(Path)` : Draw with predefined Tank path.
 
 `drawFibFigure(Path, Name, Value)` : Draw with options changed
+> **Example**
+> 
+> Draw the figure without any output message : 
+> 
+> `drawFibFigure('C:\Data\ToneFib-220920-111234_fpm10_con', 'verbose', false);`
+> 
+> Draw the figure during 5 sec before and 30 sec after the CS onset, with the z score baseline correction. The baseline is calculated from the beginning of the session :
+> 
+> `drawFibFigure('C:\Data\ToneFib-220920-111234_fpm10_con','timewindow', [-5, 30], 'baseline_correction', 'z', 'baseline_mode', 'whole');`
+
 
 ## Description
  Automatically draw fiberphotometry delta value
