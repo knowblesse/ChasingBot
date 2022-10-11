@@ -59,13 +59,17 @@ end
 
 %% Parse Exp Data
 exp_info = regexp(Data.path, '.*\.*-(?<exp_date>\d{6})-\d{6}_(?<exp_subject>.*)_.*', 'names');
+
 if isempty(exp_info.exp_subject) || isempty(exp_info.exp_date)
-    error('drawConfFigure : Can not parse the Tank name.');
-end
-if options.verbose
-    fprintf('drawFibFigure : Experiment info parsed from the Tank name.\n');
-    fprintf('            └Subject : %s\n', exp_info.exp_subject);
-    fprintf('            └Date : %s\n', exp_info.exp_date);
+    warning('drawConfFigure : Can not parse the Tank name.');
+    exp_info.exp_subject = 'Unknown Subject';
+    exp_info.exp_date = '??/??';
+else
+    if options.verbose
+        fprintf('drawFibFigure : Experiment info parsed from the Tank name.\n');
+        fprintf('            └Subject : %s\n', exp_info.exp_subject);
+        fprintf('            └Date : %s\n', exp_info.exp_date);
+    end
 end
 
 %% Create a figure
