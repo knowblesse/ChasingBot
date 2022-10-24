@@ -34,20 +34,11 @@ arguments
     
 end
 
-% default values for baseline_duration
+%% default values for baseline_duration
 if options.baseline_mode == "whole"
     options.baseline_duration = 60;
 elseif options.baseline_mode == "trial"
     options.baseline_duration = 1; 
-end
-
-if options.verbose
-    if options.baseline_correction ~= "none"
-        fprintf('drawFibFigure : Baseline correction is used.\n');
-        fprintf('drawFibFigure : Baseline selection method : %s\n', options.baseline_mode);
-    else
-        fprintf('drawFibFigure : No baseline correction is used.\n');
-    end
 end
 
 %% Load Data 
@@ -72,75 +63,31 @@ else
     end
 end
 
-%% Create a figure
-fig = figure(...
-    'Name', sprintf("%s : %s - %s", exp_type, exp_info.exp_subject, exp_info.exp_date),...
-    'Position', [180, 500, 1600, 300]);
+%% Process Data
+processedData = processFibData(Data,...
+    'verbose', options.verbose,...
+    'timewindow', options.timewindow,...
+    'us_offset', options.us_offset,...
+    'baseline_correction', options.baseline_correction,...
+    'baseline_mode', options.baseline_mode,...
+    'baseline_duration', options.baseline_duration,...
+    'baseline_whole_ignore_duration', options.baseline_whole_ignore_duration);
+numTrial = size(processedData,2);
 
-%% Experiment variables
-numTrial = size(Data.cs, 1);
-
-% check if num CS can be divided by extinction_trials_per_graph value 
-if exp_type == "Extinction"
-    if rem(numTrial, options.extinction_trials_per_graph) ~= 0
-        error('drawFibFigure : %d trials can not be divided by %d', numTrial, options.extinction_trials_per_graph);
-    end
-end
-
-windowIndexLength = round(diff(options.timewindow) * Data.fs); % the length of all "IndexLength" is 1/Data.fs
-baselineIndexLength = round(options.baseline_duration * Data.fs);
-
-wholeTrialData = zeros(windowIndexLength, numTrial);
-global_ylim = [inf, -inf];
-
-%% Matrix for baseline data
-if options.baseline_correction ~= "none"
-    if options.baseline_mode == "whole"
-        baseline = Data.delta(...
-            round(options.baseline_whole_ignore_duration * Data.fs) : ...
-            round(...
-                (options.baseline_whole_ignore_duration + options.baseline_duration) * Data.fs)...
-            );
-        baseline_mean = ones(numTrial, 1) * mean(baseline);
-        baseline_std = ones(numTrial, 1) * std(baseline);
-    elseif options.baseline_mode == "trial"
-        baseline_mean = zeros(numTrial,1);
-        baseline_std = zeros(numTrial, 1);
-    end
-end
-
-%% Calculate data
-for trial = 1 : numTrial
-    % Calculate Time 
-    windowStartIndex = round((Data.cs(trial,1) + options.timewindow(1)) * Data.fs);
-    windowEndIndex = windowStartIndex + windowIndexLength - 1;
-    delta_data = Data.delta(windowStartIndex : windowEndIndex);
-    
-    % Caculate baseline for trial mode
-    if options.baseline_mode == "trial"
-        baseline_mean(trial) = mean(delta_data(1:baselineIndexLength));
-        baseline_std(trial) = std(delta_data(1:baselineIndexLength));
-    end    
-    
-    % Correct baseline
-    if options.baseline_correction == "z"
-        delta_data = (delta_data - baseline_mean(trial)) ./ baseline_std(trial);
-    elseif options.baseline_correction == "zero"
-        delta_data = delta_data - baseline_mean(trial);
-    end
-
-    wholeTrialData(:, trial) = delta_data';
-end
 
 %% Set values according to exp_type
 if exp_type == "Extinction"
     % number of figures
     numSubFigure = numTrial / options.extinction_trials_per_graph;
+    if rem(numTrial, options.extinction_trials_per_graph) ~= 0
+        error('drawFibFigure : %d trials can not be divided by %d', numTrial, options.extinction_trials_per_graph);
+    end
+
     % mean trial data
-    wholeTrialData = ...
+    processedData = ...
         squeeze(...
             mean(...
-                reshape(wholeTrialData, [], options.extinction_trials_per_graph, numSubFigure) ... % mean by 2nd dimention
+                reshape(processedData, [], options.extinction_trials_per_graph, numSubFigure) ... % mean by 2nd dimention
                 , 2)...
             );
     % cs times
@@ -153,8 +100,15 @@ else
     cs_times = Data.cs;
 end
 
-%% Draw data
+%% Create a figure
+figure(...
+    'Name', sprintf("%s : %s - %s", exp_type, exp_info.exp_subject, exp_info.exp_date),...
+    'Position', [180, 500, 1600, 300]);
 
+global_ylim = [inf, -inf];
+
+%% Draw data
+windowIndexLength = round(diff(options.timewindow) * Data.fs); % the length of all "IndexLength" is 1/Data.fs
 for subfigure = 1 : numSubFigure
     % Calculate Time 
     if exp_type == "Extinction"
@@ -167,18 +121,18 @@ for subfigure = 1 : numSubFigure
         windowInSeconds = [windowStartIndex, windowEndIndex] ./ Data.fs;
     end
 
-    % Draw 
+    % Draw Other trials
     subplot(1,numSubFigure,subfigure);
     hold on;
-    plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), wholeTrialData,...
-        'Color', [0.8, 0.8, 0.8],...
+    plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), processedData,...
+        'Color', [0.7, 0.7, 0.7],...
         'LineWidth', 0.5,...
         'LineStyle', ':');
 
-    % Draw other trial data
+    % Draw trial data
     if options.draw_total_result
-        plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), wholeTrialData(:,subfigure),...
-            'Color', [0.1294, 0.7647, 0.4253],...
+        plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), processedData(:,subfigure),...
+            'Color', [64,75,150]./255,...
             'LineWidth', 1.2);
     end
 
@@ -210,7 +164,7 @@ for subfigure = 1 : numSubFigure
     % Draw CS US Area
     fill([cs_times(subfigure,1), cs_times(subfigure,2), cs_times(subfigure,2), cs_times(subfigure,1)],...
         [-100, -100, 100, 100],...
-        'b',...
+        [69, 184, 220] ./ 255,...
         'FaceAlpha', 0.1,...
         'LineStyle', 'None');
     
