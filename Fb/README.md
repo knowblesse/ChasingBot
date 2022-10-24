@@ -78,14 +78,30 @@ If the input tank does not belong to these types, raise error.
 - `"whole"` : Get baseline from the beginning of the session. Ignore first `baseline_whole_ignore_duration` seconds of the data, and use  `baseline_duration` seconds as baseline. For example, if `baseline_whole_ignore_duration` is set as 30, and `baseline_duration` is set as 60, session's 30 sec ~ 90 sec data will be used as the baseline.
 - `"trial"` : For each trial, use `baselineduration` seconds from the `timewindow(1)` as the baseline. Not from the CS, it's from the timewindow.
 
-#### `"baseline_duration"`
-**Double scalar**. Length of the signal in second to use as the baseline. If `"baseline_mode"` is set as `"trial"`, default value is `1` and if `"whole`, default value is `60`.
+---
+#### `"baseline_trial_duration"`
+**Double scalar**. Length of the signal in second to use as the baseline in `"trial"` baseline correction mode.
+
+#### `"baseline_trial_ignore_duration"`
+**Double scalar**. Length of the signal to ignore in `"trial"` baseline correction mode.
+
+#### `"baseline_whole_duration"`
+**Double scalar**. Length of the signal in second to use as the baseline in `"whole"` baseline correction mode.
 
 #### `"baseline_whole_ignore_duration"`
-**Double scalar**. Length of the initial signal to ignore when the `"baseline_mode"` is set as `"whole"`. Default is `30`.
+**Double scalar**. Length of the signal to ignore in `"whole"` baseline correction mode.
+
+#### `"baseline_mix_duration"`
+**[1,2] Double vector**. Length of the signal in second to use as the baseline in `"mix"` baseline correction mode. The first value is for mean correction as in `"trial"` mode and the second value is for std correction as in `"whole"` mode.
+
+#### `"filter"`
+**Double scalar**. If non-zero, apply moving average filter to the signal. The moving average filter with `filter * fs` will be used.
 
 #### `"draw_total_result"`
 **Boolean**. If false, only draw the signal from each trial. Default is `true`.
+
+#### `"draw_ribbon_result"`
+**Boolean**. If true, draw the ribbon graph. Default is `true`.
 
 #### `"extinction_trials_per_graph"`
 **Double scalar**. Number of trials to plot in one graph in Extinction dataset. Default is `6`. Note that extinction CS number must be dividable with this value. 
