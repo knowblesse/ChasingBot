@@ -74,9 +74,10 @@ If the input tank does not belong to these types, raise error.
 - `"none"` : No baseline correction.
 
 #### `"baseline_mode"`
-**String**. Decide how to calculate the baseline. Two values are possible `"whole"` and `"trial"`. Default `"trial"`
+**String**. Decide how to calculate the baseline. Three values are possible `"whole"`, `"trial"`, and `"mix"`. Default `"trial"`
 - `"whole"` : Get baseline from the beginning of the session. Ignore first `baseline_whole_ignore_duration` seconds of the data, and use  `baseline_duration` seconds as baseline. For example, if `baseline_whole_ignore_duration` is set as 30, and `baseline_duration` is set as 60, session's 30 sec ~ 90 sec data will be used as the baseline.
 - `"trial"` : For each trial, use `baselineduration` seconds from the `timewindow(1)` as the baseline. Not from the CS, it's from the timewindow.
+- `"mix"` : Mix version. Use mean from every trial, and use std from the beginning of the experiment.
 
 ---
 #### `"baseline_trial_duration"`
@@ -93,6 +94,9 @@ If the input tank does not belong to these types, raise error.
 
 #### `"baseline_mix_duration"`
 **[1,2] Double vector**. Length of the signal in second to use as the baseline in `"mix"` baseline correction mode. The first value is for mean correction as in `"trial"` mode and the second value is for std correction as in `"whole"` mode.
+
+#### `"baseline_mix_ignore_duration"`
+**[1,2] Double vector**. Length of the signal in second to ignore in `"mix"` baseline correction mode. The first value is for mean correction as in `"trial"` mode and the second value is for std correction as in `"whole"` mode.
 
 #### `"filter"`
 **Double scalar**. If non-zero, apply moving average filter to the signal. The moving average filter with `filter * fs` will be used.
