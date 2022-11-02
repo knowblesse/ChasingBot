@@ -34,7 +34,7 @@ arguments
     options.baseline_whole_ignore_duration (1,1) double = 30;
     options.baseline_mix_duration (1,2) double = [1, 60]; % [trial based mean, whole based std]
     options.baseline_mix_ignore_duration (1,2) double = [0, 30]; % [trial based mean, whole based std]
-    options.filter (1,1) {double, mustBePositive} = 0;
+    options.filter (1,1) {double, mustBeNonnegative} = 0;
 end
 
 if options.verbose

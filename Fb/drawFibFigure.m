@@ -34,7 +34,7 @@ arguments
     options.baseline_whole_ignore_duration (1,1) double = 30;
     options.baseline_mix_duration (1,2) double = [1, 60]; % [trial based mean, whole based std]
     options.baseline_mix_ignore_duration (1,2) double = [0, 30]; % [trial based mean, whole based std]
-    options.filter (1,1) {double, mustBePositive} = 0;
+    options.filter (1,1) {double, mustBeNonnegative} = 0;
     
     options.draw_total_result logical = true; % if false, only draw the signal from each trial.
     options.extinction_trials_per_graph (1,1) double = 6; % number of trials to plot in one graph in Extinction data.
