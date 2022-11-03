@@ -1,4 +1,4 @@
-function processedData = processFibData(Data, options)
+function Data = processFibData(Data, options)
 %% processFibData
 % @Knoblesse 2022
 % Process Fiber data according to selected options
@@ -31,10 +31,12 @@ arguments
     options.baseline_trial_duration (1,1) double = 1;
     options.baseline_trial_ignore_duration (1,1) double = 0;
     options.baseline_whole_duration (1,1) double = 60;
-    options.baseline_whole_ignore_duration (1,1) double = 30;
+    options.baseline_whole_ignore_duration (1,1) double = 60;
     options.baseline_mix_duration (1,2) double = [1, 60]; % [trial based mean, whole based std]
-    options.baseline_mix_ignore_duration (1,2) double = [0, 30]; % [trial based mean, whole based std]
+    options.baseline_mix_ignore_duration (1,2) double = [0, 60]; % [trial based mean, whole based std]
     options.filter (1,1) {double, mustBeNonnegative} = 0;
+    options.initial_artifact_remove_time = 30; % seconds to remove initial artifact
+    options.disable_detrending = false;
 end
 
 if options.verbose
@@ -46,37 +48,66 @@ if options.verbose
     end
 end
 
-%% Experiment variables
-numTrial = size(Data.cs, 1);
+%% Remove artifact at the beginning of the experiment
+idx = find(Data.time > options.initial_artifact_remove_time, 1);
+Data.time = Data.time(idx:end);
+Data.x465 = Data.x465(idx:end);
+Data.x405 = Data.x405(idx:end);
 
-windowIndexLength = round(diff(options.timewindow) * Data.fs); % the length of all "IndexLength" is 1/Data.fs
-
-processedData = zeros(windowIndexLength, numTrial);
-
-%% Matrix for baseline data
 if options.baseline_mode == "whole"
-    % compute baseline mean and std beforehead
-    baseline = Data.delta(...
-        round(options.baseline_whole_ignore_duration * Data.fs) : ...
-        round((options.baseline_whole_ignore_duration + options.baseline_whole_duration) * Data.fs)...
+    if options.baseline_whole_ignore_duration < options.initial_artifact_remove_time
+        error("processFibData : artifact removal time is longer than baseline ignore duration. Increase baseline ignore duration.\n")
+    end
+elseif options.baseline_mode == "mix"
+    if options.baseline_mix_ignore_duration(2) < options.initial_artifact_remove_time
+        error("processFibData : artifact removal time is longer than baseline ignore duration. Increase baseline ignore duration.\n")
+    end
+end
+
+%% Use traditional detrending method
+% Purpose : correct the main signal(=x465) with x405 data
+% TODO : correct this part for a better method
+if ~options.disable_detrending 
+    if options.verbose == false
+        warning('off','MATLAB:polyfit:RepeatedPointsOrRescale');
+    end
+    baseline_coef = polyfit(Data.x405, Data.x465, 1);
+    baseline = baseline_coef(1) .* Data.x405 + baseline_coef(2);
+    deltaF = Data.x465 - baseline;
+    dFF = deltaF ./ baseline * 100;
+    clearvars baseline_coef baseline deltaF
+else
+    dFF = (Data.x465 - Data.x405) ./ Data.x405;
+end
+
+%% Get baseline activity from the beginning of the experiment
+% Purpose : get general activity. 
+if options.baseline_mode == "whole"
+    % compute baseline mean and std using the initial signal
+    baseline = dFF(...
+        find(Data.time > options.baseline_whole_ignore_duration, 1) : ...
+        find(Data.time > (options.baseline_whole_ignore_duration + options.baseline_whole_duration), 1)...
         );
     init_mean = mean(baseline);
     init_std = std(baseline);
 elseif options.baseline_mode == "mix"
     % calculate the std from the beginning of the experiment
-    baseline = Data.delta(...
-        round(options.baseline_mix_ignore_duration(2) * Data.fs) : ...
-        round((options.baseline_mix_ignore_duration(2) + options.baseline_mix_duration(2)) * Data.fs)...
+    baseline = dFF(...
+        find(Data.time > options.baseline_mix_ignore_duration(2), 1) : ...
+        find(Data.time > (options.baseline_mix_ignore_duration(2) + options.baseline_mix_duration(2)), 1)...
         );
-    init_std = ones(numTrial, 1) * std(baseline);
+    init_std = std(baseline);
 end
 
 %% Calculate data
-for trial = 1 : numTrial
+windowIndexLength = round(diff(options.timewindow) * Data.fs); % the length of all "IndexLength" is 1/Data.fs
+processedData = zeros(windowIndexLength, Data.numTrial);
+
+for trial = 1 : Data.numTrial
     % Calculate Time 
-    windowStartIndex = round((Data.cs(trial,1) + options.timewindow(1)) * Data.fs);
+    windowStartIndex = find(Data.time > (Data.cs(trial,1) + options.timewindow(1)), 1);
     windowEndIndex = windowStartIndex + windowIndexLength - 1;
-    delta_data = Data.delta(windowStartIndex : windowEndIndex);
+    delta_data = dFF(windowStartIndex : windowEndIndex);
     
     % Caculate baseline for trial and mix mode
     if options.baseline_mode == "whole"
@@ -100,9 +131,9 @@ for trial = 1 : numTrial
     
     % Correct baseline
     if options.baseline_correction == "z"
-        delta_data = (delta_data - baseline_mean(trial)) ./ baseline_std(trial);
+        delta_data = (delta_data - baseline_mean) ./ baseline_std;
     elseif options.baseline_correction == "zero"
-        delta_data = delta_data - baseline_mean(trial);
+        delta_data = delta_data - baseline_mean;
     end
     
     % Filter 
@@ -111,5 +142,6 @@ for trial = 1 : numTrial
     end
     processedData(:, trial) = delta_data';
 end
-
+Data.timewindow = options.timewindow;
+Data.processedData = processedData;
 end

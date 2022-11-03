@@ -1,4 +1,4 @@
-function processedData = drawFibFigure(Path, options)
+function Data = drawFibFigure(Path, options)
 %% drawFigure
 % @Knoblesse 2022
 % Select Tank to open, and gather draw figure
@@ -15,7 +15,7 @@ arguments
         % if z, use zscore method.
         % if zero, subtract mean baseline to move signal to zero.
         % if none, no baseline correction.
-    options.baseline_mode {mustBeMember(options.baseline_mode, ["whole", "trial", "mix"])} = "trial";
+    options.baseline_mode {mustBeMember(options.baseline_mode, ["whole", "trial", "mix"])} = "mix";
         % Decide how to collect baseline.
         % If whole, get baseline from the beginning of the session.
         %   Ignore first `baseline_whole_ignore_duration` seconds of the data, and use 
@@ -39,7 +39,7 @@ arguments
     options.draw_total_result logical = true; % if false, only draw the signal from each trial.
     options.extinction_trials_per_graph (1,1) double = 6; % number of trials to plot in one graph in Extinction data.
     options.draw_ribbon_result logical = true;
-    
+    options.disable_detrending = false
 end
 
 %% default values for baseline_duration
@@ -72,7 +72,7 @@ else
 end
 
 %% Process Data
-processedData = processFibData(Data,...
+Data = processFibData(Data,...
     'verbose', options.verbose,...
     'timewindow', options.timewindow,...
     'us_offset', options.us_offset,...
@@ -84,30 +84,33 @@ processedData = processFibData(Data,...
     'baseline_whole_ignore_duration', options.baseline_whole_duration,...
     'baseline_mix_duration', options.baseline_mix_duration,...
     'baseline_mix_ignore_duration', options.baseline_mix_ignore_duration,...
-    'filter', options.filter);
-numTrial = size(processedData,2);
+    'filter', options.filter,...
+    'disable_detrending', options.disable_detrending);
 
 
 %% Set values according to exp_type
 if exp_type == "Extinction"
     % number of figures
-    numSubFigure = numTrial / options.extinction_trials_per_graph;
-    if rem(numTrial, options.extinction_trials_per_graph) ~= 0
-        error('drawFibFigure : %d trials can not be divided by %d', numTrial, options.extinction_trials_per_graph);
+    numSubFigure = Data.numTrial / options.extinction_trials_per_graph;
+    if rem(Data.numTrial, options.extinction_trials_per_graph) ~= 0
+        error('drawFibFigure : %d trials can not be divided by %d', Data.numTrial, options.extinction_trials_per_graph);
     end
 
     % mean trial data
-    processedData = ...
+    data2plot = ...
         squeeze(...
             mean(...
-                reshape(processedData, [], options.extinction_trials_per_graph, numSubFigure) ... % mean by 2nd dimention
+                reshape(Data.processedData, [], options.extinction_trials_per_graph, numSubFigure) ... % mean by 2nd dimention
                 , 2)...
             );
     % cs times
     cs_times = repmat([0, diff(Data.cs(1,:))], numSubFigure, 1); % beware. only CS duration from the first trial is used.
 else
+    % data
+    data2plot = Data.processedData;
+
     % number of figures
-    numSubFigure = numTrial;
+    numSubFigure = Data.numTrial;
     
     % cs times
     cs_times = Data.cs;
@@ -137,14 +140,14 @@ for subfigure = 1 : numSubFigure
     % Draw Other trials
     subplot(1,numSubFigure,subfigure);
     hold on;
-    plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), processedData,...
+    plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), data2plot,...
         'Color', [0.7, 0.7, 0.7],...
         'LineWidth', 0.5,...
         'LineStyle', ':');
 
     % Draw trial data
     if options.draw_total_result
-        plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), processedData(:,subfigure),...
+        plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), data2plot(:,subfigure),...
             'Color', [64,75,150]./255,...
             'LineWidth', 1.2);
     end
@@ -156,7 +159,7 @@ for subfigure = 1 : numSubFigure
     elseif options.baseline_correction == "zero"
         tl = title('\Delta F / F (baseline to zero)');
     else
-        tl = title('\Delta F / F');
+        tl = title('\Delta F / F (%)');
     end
 
     if exp_type == "Extinction"
@@ -214,7 +217,7 @@ windowStartIndex = round(options.timewindow(1) * Data.fs);
 windowEndIndex = windowStartIndex + windowIndexLength - 1;
 windowInSeconds = [windowStartIndex, windowEndIndex] ./ Data.fs;
 
-ribbons = ribbon(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), processedData);
+ribbons = ribbon(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), data2plot);
 cdata = jet(numSubFigure);
 for subfigure = 1 : numSubFigure
     ribbons(subfigure).LineStyle = 'none';

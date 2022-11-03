@@ -34,7 +34,6 @@ CSOF = data.epocs.CSOF.onset;
 fs = data.streams.x405C.fs;
 x465C_data = data.streams.x465C.data;
 x405C_data = data.streams.x405C.data;
-delta_data = (x465C_data - x405C_data) ./ x405C_data;
 
 %% Load Extra Commands
 Path_preprocess = fullfile(Path, 'preprocess.txt');
@@ -58,9 +57,10 @@ end
 Data = struct();
 Data.path = Path;
 Data.cs = CS;
+Data.numTrial = size(CS,1);
 Data.fs = fs;
+Data.time = (1:size(x405C_data,2)) * (1/fs);
 Data.x465 = x465C_data;
 Data.x405 = x405C_data;
-Data.delta = delta_data;
 
 end
