@@ -11,7 +11,7 @@ arguments
     verbose logical = true;
 end
 
-exp_info = regexp(Path, '.*_(?<exp_type>.*)', 'names');
+exp_info = regexp(Path, '.*(fpm|FPM)\d{1,2}_?(?<exp_type>\D*)\d?', 'names');
 exp_str = exp_info.exp_type;
 
 if strcmpi(exp_str, "con") || strcmpi(exp_str, "cond") || strcmpi(exp_str, "conditioning")
