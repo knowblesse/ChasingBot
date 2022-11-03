@@ -1,4 +1,4 @@
-function processedData = drawFibFigure(Path, options)
+function Data = drawFibFigure(Path, options)
 %% drawFigure
 % @Knoblesse 2022
 % Select Tank to open, and gather draw figure
@@ -15,7 +15,7 @@ arguments
         % if z, use zscore method.
         % if zero, subtract mean baseline to move signal to zero.
         % if none, no baseline correction.
-    options.baseline_mode {mustBeMember(options.baseline_mode, ["whole", "trial", "mix"])} = "trial";
+    options.baseline_mode {mustBeMember(options.baseline_mode, ["whole", "trial", "mix"])} = "mix";
         % Decide how to collect baseline.
         % If whole, get baseline from the beginning of the session.
         %   Ignore first `baseline_whole_ignore_duration` seconds of the data, and use 
@@ -39,7 +39,7 @@ arguments
     options.draw_total_result logical = true; % if false, only draw the signal from each trial.
     options.extinction_trials_per_graph (1,1) double = 6; % number of trials to plot in one graph in Extinction data.
     options.draw_ribbon_result logical = true;
-    
+    options.disable_detrending = false
 end
 
 %% default values for baseline_duration
@@ -84,7 +84,8 @@ Data = processFibData(Data,...
     'baseline_whole_ignore_duration', options.baseline_whole_duration,...
     'baseline_mix_duration', options.baseline_mix_duration,...
     'baseline_mix_ignore_duration', options.baseline_mix_ignore_duration,...
-    'filter', options.filter);
+    'filter', options.filter,...
+    'disable_detrending', options.disable_detrending);
 
 
 %% Set values according to exp_type
@@ -96,7 +97,7 @@ if exp_type == "Extinction"
     end
 
     % mean trial data
-    processedData = ...
+    data2plot = ...
         squeeze(...
             mean(...
                 reshape(Data.processedData, [], options.extinction_trials_per_graph, numSubFigure) ... % mean by 2nd dimention
@@ -105,6 +106,9 @@ if exp_type == "Extinction"
     % cs times
     cs_times = repmat([0, diff(Data.cs(1,:))], numSubFigure, 1); % beware. only CS duration from the first trial is used.
 else
+    % data
+    data2plot = Data.processedData;
+
     % number of figures
     numSubFigure = Data.numTrial;
     
@@ -136,14 +140,14 @@ for subfigure = 1 : numSubFigure
     % Draw Other trials
     subplot(1,numSubFigure,subfigure);
     hold on;
-    plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), Data.processedData,...
+    plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), data2plot,...
         'Color', [0.7, 0.7, 0.7],...
         'LineWidth', 0.5,...
         'LineStyle', ':');
 
     % Draw trial data
     if options.draw_total_result
-        plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), Data.processedData(:,subfigure),...
+        plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), data2plot(:,subfigure),...
             'Color', [64,75,150]./255,...
             'LineWidth', 1.2);
     end
@@ -213,7 +217,7 @@ windowStartIndex = round(options.timewindow(1) * Data.fs);
 windowEndIndex = windowStartIndex + windowIndexLength - 1;
 windowInSeconds = [windowStartIndex, windowEndIndex] ./ Data.fs;
 
-ribbons = ribbon(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), Data.processedData);
+ribbons = ribbon(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), data2plot);
 cdata = jet(numSubFigure);
 for subfigure = 1 : numSubFigure
     ribbons(subfigure).LineStyle = 'none';

@@ -59,7 +59,7 @@ Data.path = Path;
 Data.cs = CS;
 Data.numTrial = size(CS,1);
 Data.fs = fs;
-Data.time = (1:size(x405C_data,1)) * fs;
+Data.time = (1:size(x405C_data,2)) * (1/fs);
 Data.x465 = x465C_data;
 Data.x405 = x405C_data;
 
