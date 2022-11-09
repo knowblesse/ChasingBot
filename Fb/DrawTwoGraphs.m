@@ -1,10 +1,10 @@
 %% DrawTwoGraphs
 % Script for drawing two graphs
 
-DELPath = uigetdir('D:\mydata\fpdata');
-IMMPath = uigetdir('D:\mydata\fpdata');
-%DELPath = 'D:\Data_fib\fpm220920\ToneFib-220921-100636_FPM8_EXT';
-%IMMPath = 'D:\Data_fib\fpm220920\ToneFib-220920-125614_fpm16_ext';
+%DELPath = uigetdir('D:\mydata\fpdata');
+%IMMPath = uigetdir('D:\mydata\fpdata');
+DELPath = 'D:\Data_fib\fpm220920\ToneFib-220921-100636_FPM8_EXT';
+IMMPath = 'D:\Data_fib\fpm220920\ToneFib-220920-125614_fpm16_ext';
 
 Data_del = loadFibData(DELPath);
 Data_imm = loadFibData(IMMPath);
@@ -79,9 +79,13 @@ ylabel('Z score \Delta F / F');
 
 % Axis setup
 xlim(windowInSeconds);
-
 ylim([-1, 1.5])
 xlabel('Time');
 
+ax.LineWidth = 2;
+ax.FontSize = 12;
+
 % legend
-legend([ax1, ax2], ["DEL", "IMM"])
+legend([ax1, ax2], ["DEL", "IMM"]);
+
+
