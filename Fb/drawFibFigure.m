@@ -39,7 +39,8 @@ arguments
     options.draw_total_result logical = true; % if false, only draw the signal from each trial.
     options.extinction_trials_per_graph (1,1) double = 6; % number of trials to plot in one graph in Extinction data.
     options.draw_ribbon_result logical = true;
-    options.disable_detrending = false
+    options.disable_detrending = false;
+    options.initial_artifact_remove_time = 30;
 end
 
 %% default values for baseline_duration
@@ -85,7 +86,8 @@ Data = processFibData(Data,...
     'baseline_mix_duration', options.baseline_mix_duration,...
     'baseline_mix_ignore_duration', options.baseline_mix_ignore_duration,...
     'filter', options.filter,...
-    'disable_detrending', options.disable_detrending);
+    'disable_detrending', options.disable_detrending,...
+    'initial_artifact_remove_time', options.initial_artifact_remove_time);
 
 
 %% Set values according to exp_type
