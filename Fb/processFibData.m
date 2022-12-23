@@ -9,7 +9,6 @@ arguments
     Data;
     options.verbose logical = true; % if false, print no output.
     options.timewindow (1,2) double = [-5, 20]; % draw graph `timewindow(1)` seconds from CS to `timewindow(2)` seconds from CS.
-    options.us_offset (1,1) double = 2.5; % US starts `usoffset` seconds before the CS ends.
     options.baseline_correction {mustBeMember(options.baseline_correction, ["z", "zero", "none"])} = "none"
         % Decide how to correct baseline.
         % if z, use zscore method.
@@ -36,7 +35,7 @@ arguments
     options.baseline_mix_ignore_duration (1,2) double = [0, 60]; % [trial based mean, whole based std]
     options.filter (1,1) {double, mustBeNonnegative} = 0;
     options.initial_artifact_remove_time = 30; % seconds to remove initial artifact
-    options.disable_detrending = false;
+    options.detrend = false;
 end
 
 if options.verbose
@@ -67,7 +66,7 @@ end
 %% Use traditional detrending method
 % Purpose : correct the main signal(=x465) with x405 data
 % TODO : correct this part for a better method
-if ~options.disable_detrending 
+if options.detrend 
     if options.verbose == false
         warning('off','MATLAB:polyfit:RepeatedPointsOrRescale');
     end
@@ -144,4 +143,5 @@ for trial = 1 : Data.numTrial
 end
 Data.timewindow = options.timewindow;
 Data.processedData = processedData;
+Data.baseline_correction = options.baseline_correction;
 end
