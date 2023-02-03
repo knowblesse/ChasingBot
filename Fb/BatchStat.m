@@ -1,7 +1,7 @@
 %% BatchStatScript
 % Script for batch running other scripts or functions
 
-basePath = 'D:\Data\Lobster\Lobster_Recording-200319-161008\Data';
+basePath = uigetdir('D:\mydata\fpdata');
 
 filelist = dir(basePath);
 sessionPaths = regexp({filelist.name},'[^.].*','match');
@@ -9,14 +9,14 @@ sessionPaths = sessionPaths(~cellfun('isempty',sessionPaths));
 fprintf('%d sessions detected.\n', numel(sessionPaths));
 
 numSession = numel(sessionPaths);
-outputTable = table(strings(numSession,1), zeros(numSession,1), zeros(numSession), 'VariableNames',["Session", "dFF", "AUC"]);
+outputTable = table(strings(numSession,1), zeros(numSession,1), zeros(numSession,1), 'VariableNames',["Session", "dFF", "AUC"]);
 
 % Session
 for session = 1 : numel(sessionPaths)
     TANK_name = cell2mat(sessionPaths{session});
     TANK_location = char(strcat(basePath, filesep, TANK_name));
     %% Load Data
-    Data = loadFibData(Path);
+    Data = loadFibData(TANK_location);
     
     %% Preprocess Data
     Data = processFibData(Data, ...
@@ -31,15 +31,16 @@ for session = 1 : numel(sessionPaths)
         );
     
     %% Get Mean Activation
-    [dFF, AUC] = getMeanActivation(Data, [0, 7.5]);
+    [dFF, AUC] = getMeanActivation(Data, [7.5, 10]);
 
     %% Input
-    outputTable.Session = TANK_Name;
-    outputTable.dFF = dFF;
-    outputTable.AUC = AUC;
+    outputTable.Session(session) = TANK_name;
+    outputTable.dFF(session) = dFF;
+    outputTable.AUC(session) = AUC;
 
 end
 fprintf('DONE\n');
+clearvars -except outputTable
 
 
 
