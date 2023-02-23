@@ -1,3 +1,5 @@
+## 1.0.4
+- AUC / mean dF/F 를 일부 trial 에서만 뽑는 기능 추가.
 ## 1.0.3
 - Print AUC / mean dF/F 기능 추가.
 ## 1.0.2
