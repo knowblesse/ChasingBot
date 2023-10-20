@@ -36,7 +36,7 @@ imm_s = std(Data_imm.processedData, 0, 2) ./ 30^0.5;
 
 %% Create a figure
 figure(...
-    'Name', 'Two Grpahs',...
+    'Name', 'Two Grpahs1',...
     'Position', [180, 500, 676, 300]);
 ax = subplot(1,1,1);
 hold on;
@@ -44,6 +44,7 @@ hold on;
 timewindow = [-5, 15];
 cs_times = [0, diff(Data_imm.cs(1,:))];
 windowIndexLength = round(diff(timewindow) * Data_del.fs); % the length of all "IndexLength" is 1/Data.fs
+
 % Calculate Time 
 windowStartIndex = round(timewindow(1) * Data_del.fs);
 windowEndIndex = windowStartIndex + windowIndexLength - 1;
@@ -56,16 +57,23 @@ fill([cs_times(1), cs_times(2), cs_times(2), cs_times(1)],...
     'FaceAlpha', 0.3,...
     'LineStyle', 'None');
 
+% Reduce number of points (too many points result error in AI)
+xvalues = linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength);
+xvalues = xvalues(1:20:end);
+del_m = del_m(1:20:end);
+del_s = del_s(1:20:end);
+imm_m = imm_m(1:20:end);
+imm_s = imm_s(1:20:end);
+
+addShade(xvalues, del_m, del_s, [160, 0, 0]./255);
+addShade(xvalues, imm_m, imm_s, [0, 0, 128]./255);
+
 % Draw Result
-addShade(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), del_m, del_s, [160, 0, 0]./255);
-addShade(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), imm_m, imm_s, [0, 0, 128]./255);
-
-
-ax1 = plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), del_m,...
+ax1 = plot(xvalues, del_m,...
     'Color', [160, 0, 0]./255,...
     'LineWidth', 2);
 
-ax2 = plot(linspace(windowInSeconds(1), windowInSeconds(2), windowIndexLength), imm_m,...
+ax2 = plot(xvalues, imm_m,...
     'Color', [0, 0, 128]./255,...
     'LineWidth', 2);
 
